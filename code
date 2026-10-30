@@ -1,0 +1,139 @@
+
+
+int redPin = 9;
+int greenPin = 10;
+int bluePin = 11;
+int buttonPin = 2;
+
+int happy = 50;
+
+int red = 0;
+int green = 255;
+int blue = 0;
+
+int targetRed = 255;
+int targetGreen = 255;
+int targetBlue = 0;
+
+unsigned long lastPet = 0;
+unsigned long lastColor = 0;
+unsigned long lastPress = 0;
+unsigned long discomfortTime = 0;
+unsigned long windowStart = 0;
+
+int lastButton = HIGH;
+
+int petCount = 0;
+bool uncomfortable = false;
+
+void setup() {
+  pinMode(redPin, OUTPUT);
+  pinMode(greenPin, OUTPUT);
+  pinMode(bluePin, OUTPUT);
+  pinMode(buttonPin, INPUT_PULLUP);
+
+  Serial.begin(9600);
+
+  lastPet = millis();
+  windowStart = millis();
+}
+
+void loop() {
+  unsigned long now = millis();
+
+  int button = digitalRead(buttonPin);
+
+  if (button == LOW && lastButton == HIGH &&
+      now - lastPress > 50) {
+
+    lastPress = now;
+
+    if (uncomfortable) {
+      discomfortTime = now;
+      Serial.println("Still uncomfortable!");
+    } else {
+      if (now - windowStart > 8000) {
+        petCount = 0;
+        windowStart = now;
+      }
+
+      petCount++;
+      
+      if (petCount > 8) {
+        uncomfortable = true;
+        discomfortTime = now;
+        Serial.println("Too much! Let me rest.");
+      } else {
+        happy += 10;
+
+        if (happy > 100) {
+          happy = 100;
+        }
+
+        lastPet = now;
+
+        Serial.print("Happy: ");
+        Serial.println(happy);
+      }
+    }
+  }
+
+  lastButton = button;
+  if (!uncomfortable && now - lastPet >= 500) {
+    happy -= 5;
+
+    if (happy < 0) {
+      happy = 0;
+    }
+
+    lastPet = now;
+  }
+
+  if (uncomfortable &&
+      now - discomfortTime >= 4000) {
+
+    uncomfortable = false;
+    petCount = 0;
+    windowStart = now;
+    lastPet = now;
+
+    Serial.println("The toy feels better!");
+  }
+
+  if (uncomfortable) {
+    targetRed = 180;
+    targetGreen = 0;
+    targetBlue = 255;
+  } else {
+    targetBlue = 0;
+
+    if (happy >= 50) {
+      targetRed = map(happy, 50, 100, 255, 0);
+      targetGreen = 255;
+    } else {
+      targetRed = 255;
+      targetGreen = map(happy, 0, 50, 0, 255);
+    }
+  }
+
+  if (now - lastColor >= 10) {
+    lastColor = now;
+
+    if (red < targetRed) red += 2;
+    if (red > targetRed) red -= 2;
+
+    if (green < targetGreen) green += 2;
+    if (green > targetGreen) green -= 2;
+
+    if (blue < targetBlue) blue += 2;
+    if (blue > targetBlue) blue -= 2;
+
+    if (abs(red - targetRed) < 2) red = targetRed;
+    if (abs(green - targetGreen) < 2) green = targetGreen;
+    if (abs(blue - targetBlue) < 2) blue = targetBlue;
+
+    analogWrite(redPin, 255 - red);
+    analogWrite(greenPin, 255 - green);
+    analogWrite(bluePin, 255 - blue);
+  }
+}
